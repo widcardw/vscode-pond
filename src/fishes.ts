@@ -6,6 +6,13 @@ export interface Fish extends Sprite {
   speed: number
   turnSpeed: number
   baseScale: number
+  // Flip animation state
+  flipTimer: number         // remaining time in flip animation (frame units)
+  flipDuration: number      // total duration of the flip
+  originalSpeed: number     // speed before flip started
+  flipStartRotation: number // sprite rotation when flip began
+  flipTriggered: boolean    // whether direction has been flipped in this cycle
+  inFlipWindow: boolean     // true during the card-flip phase (scale.x animation)
 }
 
 const FISH_ASSETS = ['vscode1', 'vscode2', 'vscode3', 'vscode4']
@@ -35,6 +42,14 @@ export function addFishes(app: { screen: { width: number; height: number }; stag
     fish.scale.set(baseScale)
     fish.baseScale = baseScale
 
+    // Flip animation init
+    fish.flipTimer = 0
+    fish.flipDuration = 0
+    fish.originalSpeed = fish.speed
+    fish.flipStartRotation = 0
+    fish.flipTriggered = false
+    fish.inFlipWindow = false
+
     fishContainer.addChild(fish)
     fishes.push(fish)
   }
@@ -48,35 +63,87 @@ export function animateFishes(app: { screen: { width: number; height: number } }
   const boundHeight = app.screen.height + stagePadding * 2
 
   for (const fish of fishes) {
-    // Update direction (brownian-style movement)
-    fish.direction += fish.turnSpeed * 0.01
+    const isFlipping = fish.flipTimer > 0
+    fish.inFlipWindow = false
 
-    // Move
+    // ── Flip animation ──────────────────────────────────────────────
+    if (isFlipping) {
+      fish.flipTimer -= delta
+      const progress = 1 - fish.flipTimer / fish.flipDuration  // 0 → 1
+
+      // Speed curve: decelerate → flip → accelerate
+      if (progress < 0.35) {
+        // Decelerate
+        const t = progress / 0.35
+        fish.speed = fish.originalSpeed * (1 - t * t)
+      } else if (progress < 0.55) {
+        // ── Card-flip window ────────────────────────────────────────
+        fish.inFlipWindow = true
+        fish.speed = 0
+
+        // Normalised progress within the flip window [0, 1]
+        const flipT = (progress - 0.35) / 0.2
+
+        // Smooth cosine ease: baseScale → 0 → -baseScale
+        fish.scale.x = fish.baseScale * Math.cos(flipT * Math.PI)
+        fish.scale.y = fish.baseScale
+
+        // Keep rotation frozen during the flip
+        fish.rotation = fish.flipStartRotation
+
+        // Flip movement direction at the visual midpoint
+        if (!fish.flipTriggered && flipT >= 0.5) {
+          fish.direction += Math.PI
+          fish.flipTriggered = true
+        }
+      } else {
+        // Accelerate
+        const t = (progress - 0.55) / 0.45
+        fish.speed = fish.originalSpeed * (t * t)
+      }
+
+      if (fish.flipTimer <= 0) {
+        fish.speed = fish.originalSpeed
+      }
+    } else {
+      // Very small chance to initiate a flip
+      if (Math.random() < 0.0002 * delta) {
+        fish.originalSpeed = fish.speed
+        fish.flipDuration = 40 + Math.random() * 30  // ~0.7–1.2s at 60fps
+        fish.flipTimer = fish.flipDuration
+        fish.flipStartRotation = fish.rotation  // freeze current rotation
+        fish.flipTriggered = false
+      }
+    }
+
+    // ── Normal movement ─────────────────────────────────────────────
+    if (!isFlipping) {
+      fish.direction += fish.turnSpeed * 0.01
+    }
     fish.x += Math.sin(fish.direction) * fish.speed * delta
     fish.y += Math.cos(fish.direction) * fish.speed * delta
 
-    // Calculate rotation so the RIGHT side of the icon (= fish head) faces movement direction
-    // rotation = 0 means the sprite's right side faces east (default)
-    let rotation = -fish.direction + Math.PI / 2
+    // ── Rotation & scale (skipped during the card-flip window) ──────
+    if (!fish.inFlipWindow) {
+      let rotation = -fish.direction + Math.PI / 2
 
-    // Keep the sprite upright (not upside-down) by flipping horizontally when needed.
-    // Use >= / <= to avoid a visual snap at the exact boundary.
-    const baseScale = fish.baseScale
-    if (rotation >= Math.PI / 2) {
-      rotation -= Math.PI
-      fish.scale.x = -baseScale
-      fish.scale.y = baseScale
-    } else if (rotation <= -Math.PI / 2) {
-      rotation += Math.PI
-      fish.scale.x = -baseScale
-      fish.scale.y = baseScale
-    } else {
-      fish.scale.x = baseScale
-      fish.scale.y = baseScale
+      const baseScale = fish.baseScale
+      if (rotation >= Math.PI / 2) {
+        rotation -= Math.PI
+        fish.scale.x = -baseScale
+        fish.scale.y = baseScale
+      } else if (rotation <= -Math.PI / 2) {
+        rotation += Math.PI
+        fish.scale.x = -baseScale
+        fish.scale.y = baseScale
+      } else {
+        fish.scale.x = baseScale
+        fish.scale.y = baseScale
+      }
+      fish.rotation = rotation
     }
-    fish.rotation = rotation
 
-    // Wrap around screen edges
+    // ── Screen edge wrap ────────────────────────────────────────────
     if (fish.x < -stagePadding) {
       fish.x += boundWidth
     }
