@@ -10,9 +10,11 @@ export interface Fish extends Sprite {
   flipTimer: number         // remaining time in flip animation (frame units)
   flipDuration: number      // total duration of the flip
   originalSpeed: number     // speed before flip started
-  flipStartRotation: number // sprite rotation when flip began
+  flipStartScale: number    // scale.x value at the moment flip window begins
+  flipStartRotation: number // sprite rotation when flip window begins
   flipTriggered: boolean    // whether direction has been flipped in this cycle
   inFlipWindow: boolean     // true during the card-flip phase (scale.x animation)
+  flipCooldown: number      // frames before another flip can trigger
 }
 
 const FISH_ASSETS = ['vscode1', 'vscode2', 'vscode3', 'vscode4']
@@ -46,9 +48,11 @@ export function addFishes(app: { screen: { width: number; height: number }; stag
     fish.flipTimer = 0
     fish.flipDuration = 0
     fish.originalSpeed = fish.speed
+    fish.flipStartScale = baseScale
     fish.flipStartRotation = 0
     fish.flipTriggered = false
     fish.inFlipWindow = false
+    fish.flipCooldown = 0
 
     fishContainer.addChild(fish)
     fishes.push(fish)
@@ -63,6 +67,9 @@ export function animateFishes(app: { screen: { width: number; height: number } }
   const boundHeight = app.screen.height + stagePadding * 2
 
   for (const fish of fishes) {
+    // Tick cooldown
+    if (fish.flipCooldown > 0) fish.flipCooldown -= delta
+
     const isFlipping = fish.flipTimer > 0
     fish.inFlipWindow = false
 
@@ -84,8 +91,9 @@ export function animateFishes(app: { screen: { width: number; height: number } }
         // Normalised progress within the flip window [0, 1]
         const flipT = (progress - 0.35) / 0.2
 
-        // Smooth cosine ease: baseScale → 0 → -baseScale
-        fish.scale.x = fish.baseScale * Math.cos(flipT * Math.PI)
+        // Animate scale.x from flipStartScale → 0 → −flipStartScale
+        // This creates a smooth card-flip around the vertical center axis
+        fish.scale.x = fish.flipStartScale * Math.cos(flipT * Math.PI)
         fish.scale.y = fish.baseScale
 
         // Keep rotation frozen during the flip
@@ -104,14 +112,16 @@ export function animateFishes(app: { screen: { width: number; height: number } }
 
       if (fish.flipTimer <= 0) {
         fish.speed = fish.originalSpeed
+        fish.flipCooldown = 120  // ~2s cooldown before another flip can trigger
       }
     } else {
-      // Very small chance to initiate a flip
-      if (Math.random() < 0.0002 * delta) {
+      // Only trigger a new flip when cooldown has elapsed
+      if (fish.flipCooldown <= 0 && Math.random() < 0.0002 * delta) {
         fish.originalSpeed = fish.speed
         fish.flipDuration = 40 + Math.random() * 30  // ~0.7–1.2s at 60fps
         fish.flipTimer = fish.flipDuration
-        fish.flipStartRotation = fish.rotation  // freeze current rotation
+        fish.flipStartScale = fish.scale.x  // capture current scale.x for smooth transition
+        fish.flipStartRotation = fish.rotation
         fish.flipTriggered = false
       }
     }
