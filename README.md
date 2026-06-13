@@ -24,7 +24,7 @@ pnpm preview
 
 ## How It Works
 
-- Built with [PixiJS](https://pixijs.com/) v8 rendering engine
+- Built with [PixiJS](https://pixijs.com/) v8 rendering engine, with the official tutorial [Fish Pond](https://pixijs.com/8.x/tutorials/fish-pond) ([repo](https://github.com/youyoumu/fish-pond))
 - Icons from `public/` are loaded as sprites and animated with smooth brownian-style movement
 - A programmatically generated displacement map creates the underwater wave distortion
 - CSS radial gradient provides the deep ocean background (canvas is transparent)
