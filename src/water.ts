@@ -1,44 +1,5 @@
 import { Container, DisplacementFilter, Sprite, Texture, TilingSprite } from 'pixi.js'
 
-const TILE_SIZE = 256
-
-// ─── Displacement map (underwater distortion) ──────────────────────────────
-
-/** Generate a tileable displacement map with layered wave patterns */
-function generateWaterDisplacementMap(): HTMLCanvasElement {
-  const canvas = document.createElement('canvas')
-  canvas.width = TILE_SIZE
-  canvas.height = TILE_SIZE
-  const ctx = canvas.getContext('2d')!
-  const imageData = ctx.createImageData(TILE_SIZE, TILE_SIZE)
-
-  for (let y = 0; y < TILE_SIZE; y++) {
-    for (let x = 0; x < TILE_SIZE; x++) {
-      const nx = x / TILE_SIZE
-      const ny = y / TILE_SIZE
-
-      // Layered sine waves at different frequencies + angles for natural water ripples
-      const w1 = Math.sin(nx * 8 * Math.PI + ny * 3 * Math.PI)
-      const w2 = Math.sin(nx * 5 * Math.PI - ny * 7 * Math.PI) * 0.7
-      const w3 = Math.sin((nx + ny) * 6 * Math.PI) * 0.5
-      const w4 = Math.sin(nx * 11 * Math.PI - ny * 4 * Math.PI) * 0.3
-      const value = (w1 + w2 + w3 + w4) / 4
-
-      // Map from [-1, 1] to [0, 255] — centered at 128 = no displacement
-      const pixel = Math.round((value + 1) * 127.5)
-
-      const idx = (y * TILE_SIZE + x) * 4
-      imageData.data[idx] = pixel      // R → horizontal displacement
-      imageData.data[idx + 1] = pixel  // G → vertical displacement
-      imageData.data[idx + 2] = 128    // B unused
-      imageData.data[idx + 3] = 255    // A
-    }
-  }
-
-  ctx.putImageData(imageData, 0, 0)
-  return canvas
-}
-
 export interface WaterEffect {
   sprite: Sprite
   filter: DisplacementFilter
@@ -49,8 +10,7 @@ export interface WaterEffect {
  * The displacement map is generated programmatically (no external asset needed).
  */
 export function addWaterDisplacement(stage: Container, _screenWidth: number, _screenHeight: number): WaterEffect {
-  const mapCanvas = generateWaterDisplacementMap()
-  const texture = Texture.from(mapCanvas)
+  const texture = Texture.from('displacement')
 
   // Make the displacement texture tile seamlessly
   texture.baseTexture.wrapMode = 'repeat'

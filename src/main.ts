@@ -42,6 +42,7 @@ async function preload() {
     { alias: 'vscode3', src: '/vscode-orange.png' },
     { alias: 'vscode4', src: '/vscode-pink.png' },
     { alias: 'overlay', src: '/wave_overlay.png' },
+    { alias: 'displacement', src: '/displacement_map.png' },
   ]
   await Assets.load(assets)
 }
