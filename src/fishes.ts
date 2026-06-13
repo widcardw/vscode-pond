@@ -9,7 +9,7 @@ export interface Fish extends Sprite {
 }
 
 const FISH_ASSETS = ['vscode1', 'vscode2', 'vscode3', 'vscode4']
-const FISH_COUNT = 50
+const FISH_COUNT = 40
 
 export function addFishes(app: { screen: { width: number; height: number }; stage: Container }, fishes: Fish[]) {
   const fishContainer = new Container()

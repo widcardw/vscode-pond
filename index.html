@@ -8,6 +8,71 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <!-- Info button (bottom-right) -->
+    <button id="info-btn" class="info-button" aria-label="About this project">
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12.713 16.713Q13 16.425 13 16v-4q0-.425-.288-.712T12 11t-.712.288T11 12v4q0 .425.288.713T12 17t.713-.288m0-8Q13 8.425 13 8t-.288-.712T12 7t-.712.288T11 8t.288.713T12 9t.713-.288M12 22q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22m0-2q3.35 0 5.675-2.325T20 12t-2.325-5.675T12 4T6.325 6.325T4 12t2.325 5.675T12 20m0-8"/>
+      </svg>
+    </button>
+
+    <!-- Dialog overlay -->
+    <div id="info-dialog" class="dialog-overlay hidden">
+      <div class="dialog-card">
+        <button id="dialog-close" class="dialog-close">&times;</button>
+        <h2>VSCode Pond</h2>
+        <p class="dialog-subtitle">A playful fish pond built with VS Code icons</p>
+        <div class="dialog-body">
+          <p>
+            This project renders VS Code logo icons as "fish" swimming across a deep
+            ocean scene using <strong>PixiJS v8</strong>. It includes a water ripple
+            distortion effect and an animated wave surface overlay.
+          </p>
+          <ul>
+            <li>Inspired by the <strong>Show Aquarium</strong> feature in
+              <a href="https://code.visualstudio.com/" target="_blank" rel="noopener">VS Code Agent</a>
+            </li>
+            <li>Rendering powered by
+              <a href="https://pixijs.com/" target="_blank" rel="noopener">PixiJS</a>
+            </li>
+            <li>Reference implementation by
+              <a href="https://github.com/youyoumu/fish-pond" target="_blank" rel="noopener">youyoumu</a>
+            </li>
+            <li>Built with <a href="https://pixijs.com/" target="_blank" rel="noopener">PixiJS</a>,
+              <a href="https://vite.dev/" target="_blank" rel="noopener">Vite</a>, and
+              <a href="https://www.typescriptlang.org/" target="_blank" rel="noopener">TypeScript</a>
+            </li>
+          </ul>
+        </div>
+        <a href="https://github.com/widcardw/vscode-pond" class="dialog-link" target="_blank" rel="noopener">
+          View on GitHub &rarr;
+        </a>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
+    <script>
+      (function() {
+        const btn = document.getElementById('info-btn');
+        const dialog = document.getElementById('info-dialog');
+        const close = document.getElementById('dialog-close');
+
+        function openDialog() {
+          dialog.classList.remove('hidden');
+        }
+
+        function closeDialog() {
+          dialog.classList.add('hidden');
+        }
+
+        btn.addEventListener('click', openDialog);
+        close.addEventListener('click', closeDialog);
+        dialog.addEventListener('click', function(e) {
+          if (e.target === dialog) closeDialog();
+        });
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') closeDialog();
+        });
+      })();
+    </script>
   </body>
 </html>

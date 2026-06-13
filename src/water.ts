@@ -1,6 +1,8 @@
-import { Container, DisplacementFilter, Sprite, Texture } from 'pixi.js'
+import { Container, DisplacementFilter, Sprite, Texture, TilingSprite } from 'pixi.js'
 
 const TILE_SIZE = 256
+
+// ─── Displacement map (underwater distortion) ──────────────────────────────
 
 /** Generate a tileable displacement map with layered wave patterns */
 function generateWaterDisplacementMap(): HTMLCanvasElement {
@@ -71,4 +73,37 @@ export function animateWater(sprite: Sprite, delta: number) {
   // Scroll diagonally at a slow pace — feels like gentle current + surface ripple
   sprite.x -= delta * 0.12
   sprite.y -= delta * 0.06
+}
+
+// ─── Water surface overlay (tiling sprite from public/wave_overlay.png) ──
+
+export interface WaterOverlay {
+  tilingSprite: TilingSprite
+}
+
+/**
+ * Create and add a water surface overlay (TilingSprite) on top of the stage.
+ * Uses the preloaded 'overlay' asset from public/wave_overlay.png.
+ */
+export function addWaterOverlay(stage: Container, screenWidth: number, screenHeight: number): WaterOverlay {
+  const texture = Texture.from('overlay')
+  texture.baseTexture.wrapMode = 'repeat'
+
+  const tilingSprite = new TilingSprite({
+    texture,
+    width: screenWidth,
+    height: screenHeight,
+  })
+
+  stage.addChild(tilingSprite)
+
+  // Lower the overlay opacity so it's more subtle
+  tilingSprite.alpha = 0.3
+
+  return { tilingSprite }
+}
+
+export function animateWaterOverlay(tilingSprite: TilingSprite, delta: number) {
+  tilingSprite.tilePosition.x -= delta * 0.5
+  tilingSprite.tilePosition.y -= delta * 0.3
 }
