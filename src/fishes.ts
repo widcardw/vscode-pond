@@ -15,6 +15,8 @@ export interface Fish extends Sprite {
   flipTriggered: boolean    // whether direction has been flipped in this cycle
   inFlipWindow: boolean     // true during the card-flip phase (scale.x animation)
   flipCooldown: number      // frames before another flip can trigger
+  flipTargetDirection: number | null  // if set, flip toward this direction instead of +π
+  flipEndSpeed: number | null         // if set, speed after flip ends instead of originalSpeed
   // Flee state
   fleeCooldown: number      // frames before this fish can flee again
   fleeBoost: number         // remaining frames of speed boost when fleeing
@@ -62,6 +64,8 @@ export function addFishes(app: { screen: { width: number; height: number }; stag
     fish.flipTriggered = false
     fish.inFlipWindow = false
     fish.flipCooldown = 0
+    fish.flipTargetDirection = null
+    fish.flipEndSpeed = null
     fish.fleeCooldown = 0
     fish.fleeBoost = 0
     fish.isChasingFood = false
@@ -87,8 +91,8 @@ export function animateFishes(app: { screen: { width: number; height: number } }
     if (fish.flipCooldown > 0) fish.flipCooldown -= delta
     if (fish.fleeCooldown > 0) fish.fleeCooldown -= delta
 
-    // Decay flee speed boost back to original
-    if (fish.fleeBoost > 0) {
+    // Decay flee speed boost back to original (skip during flip)
+    if (fish.fleeBoost > 0 && fish.flipTimer <= 0) {
       fish.fleeBoost -= delta
       if (fish.fleeBoost <= 0) {
         fish.fleeBoost = 0
@@ -115,21 +119,31 @@ export function animateFishes(app: { screen: { width: number; height: number } }
       fish.flipTimer -= delta
       const progress = 1 - fish.flipTimer / fish.flipDuration  // 0 → 1
 
-      // Speed curve: decelerate → flip → accelerate
-      if (progress < 0.35) {
-        // Decelerate
-        const t = progress / 0.35
-        fish.speed = fish.originalSpeed * (1 - t * t)
-      } else if (progress < 0.55) {
+      const isFleeFlip = fish.flipEndSpeed !== null
+
+      // Speed curve: for random flips only (flee flips keep their boosted speed)
+      if (!isFleeFlip) {
+        if (progress < 0.35) {
+          // Decelerate
+          const t = progress / 0.35
+          fish.speed = fish.originalSpeed * (1 - t * t)
+        } else if (progress < 0.55) {
+          fish.speed = 0
+        } else {
+          // Accelerate
+          const t = (progress - 0.55) / 0.45
+          fish.speed = fish.originalSpeed * (t * t)
+        }
+      }
+
+      if (progress >= 0.35 && progress < 0.55) {
         // ── Card-flip window ────────────────────────────────────────
         fish.inFlipWindow = true
-        fish.speed = 0
 
         // Normalised progress within the flip window [0, 1]
         const flipT = (progress - 0.35) / 0.2
 
         // Animate scale.x from flipStartScale → 0 → −flipStartScale
-        // This creates a smooth card-flip around the vertical center axis
         fish.scale.x = fish.flipStartScale * Math.cos(flipT * Math.PI)
         fish.scale.y = fish.baseScale
 
@@ -138,17 +152,23 @@ export function animateFishes(app: { screen: { width: number; height: number } }
 
         // Flip movement direction at the visual midpoint
         if (!fish.flipTriggered && flipT >= 0.5) {
-          fish.direction += Math.PI
+          if (fish.flipTargetDirection !== null) {
+            fish.direction = fish.flipTargetDirection
+            fish.flipTargetDirection = null
+            // Boost speed at the same moment — no premature rush
+            if (fish.flipEndSpeed !== null) {
+              fish.speed = fish.flipEndSpeed
+            }
+          } else {
+            fish.direction += Math.PI
+          }
           fish.flipTriggered = true
         }
-      } else {
-        // Accelerate
-        const t = (progress - 0.55) / 0.45
-        fish.speed = fish.originalSpeed * (t * t)
       }
 
       if (fish.flipTimer <= 0) {
-        fish.speed = fish.originalSpeed
+        fish.speed = fish.flipEndSpeed !== null ? fish.flipEndSpeed : fish.originalSpeed
+        fish.flipEndSpeed = null
         fish.flipCooldown = 120  // ~2s cooldown before another flip can trigger
       }
     } else if (!fish.isChasingFood) {

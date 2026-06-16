@@ -80,12 +80,44 @@ function triggerFlee(mx: number, my: number, fishes: Fish[]) {
     const distSq = dx * dx + dy * dy
 
     if (distSq < FLEE_RADIUS_SQ) {
-      fish.flipTimer = 0
-      fish.flipCooldown = 90  // prevent flip from overriding flee
-      fish.speed = fish.originalSpeed * SPEED_MULTIPLIER
-      fish.direction = Math.atan2(dy, dx)
-      fish.fleeCooldown = FLEE_COOLDOWN_FRAMES
-      fish.fleeBoost = FLEE_BOOST_FRAMES
+      const fleeDir = Math.atan2(dx, dy)  // direction away from mouse
+
+      // Angle diff between current direction and flee direction
+      let diff = fleeDir - fish.direction
+      // Normalise to [-π, π]
+      if (diff > Math.PI) diff -= 2 * Math.PI
+      if (diff < -Math.PI) diff += 2 * Math.PI
+
+      if (Math.abs(diff) > 2 * Math.PI / 3) {
+        // ── Sharp turn (> 120°) — use a short card-flip around the bisector ──
+        fish.flipTimer = 0
+        fish.flipCooldown = 90
+
+        // Angle bisector of current direction and flee direction
+        const bisector = fish.direction + diff / 2
+        // Convert bisector to sprite rotation
+        const bisectorRotation = -bisector + Math.PI / 2
+
+        fish.flipDuration = 18  // ~0.3s at 60fps
+        fish.flipTimer = fish.flipDuration
+        fish.flipStartScale = fish.scale.x
+        fish.flipStartRotation = bisectorRotation
+        fish.flipTriggered = false
+        fish.flipTargetDirection = fleeDir
+        // Speed will be boosted at the flip midpoint (when direction changes)
+        fish.flipEndSpeed = fish.originalSpeed * SPEED_MULTIPLIER
+
+        fish.fleeCooldown = FLEE_COOLDOWN_FRAMES
+        fish.fleeBoost = FLEE_BOOST_FRAMES
+      } else {
+        // ── Gentle turn (≤ 120°) — instant direction change ──
+        fish.flipTimer = 0
+        fish.flipCooldown = 90
+        fish.speed = fish.originalSpeed * SPEED_MULTIPLIER
+        fish.direction = fleeDir
+        fish.fleeCooldown = FLEE_COOLDOWN_FRAMES
+        fish.fleeBoost = FLEE_BOOST_FRAMES
+      }
     }
   }
 }
