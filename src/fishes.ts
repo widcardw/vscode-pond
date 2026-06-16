@@ -15,6 +15,15 @@ export interface Fish extends Sprite {
   flipTriggered: boolean    // whether direction has been flipped in this cycle
   inFlipWindow: boolean     // true during the card-flip phase (scale.x animation)
   flipCooldown: number      // frames before another flip can trigger
+  // Flee state
+  fleeCooldown: number      // frames before this fish can flee again
+  fleeBoost: number         // remaining frames of speed boost when fleeing
+  // Food-chase state
+  isChasingFood: boolean
+  foodTargetX: number
+  foodTargetY: number
+  chaseTimer: number        // remaining frames of chase (gives up after timeout)
+  savedSpeed: number        // speed before chase started
 }
 
 const FISH_ASSETS = ['vscode1', 'vscode2', 'vscode3', 'vscode4']
@@ -53,6 +62,13 @@ export function addFishes(app: { screen: { width: number; height: number }; stag
     fish.flipTriggered = false
     fish.inFlipWindow = false
     fish.flipCooldown = 0
+    fish.fleeCooldown = 0
+    fish.fleeBoost = 0
+    fish.isChasingFood = false
+    fish.foodTargetX = 0
+    fish.foodTargetY = 0
+    fish.chaseTimer = 0
+    fish.savedSpeed = fish.speed
 
     fishContainer.addChild(fish)
     fishes.push(fish)
@@ -67,8 +83,29 @@ export function animateFishes(app: { screen: { width: number; height: number } }
   const boundHeight = app.screen.height + stagePadding * 2
 
   for (const fish of fishes) {
-    // Tick cooldown
+    // Tick cooldowns
     if (fish.flipCooldown > 0) fish.flipCooldown -= delta
+    if (fish.fleeCooldown > 0) fish.fleeCooldown -= delta
+
+    // Decay flee speed boost back to original
+    if (fish.fleeBoost > 0) {
+      fish.fleeBoost -= delta
+      if (fish.fleeBoost <= 0) {
+        fish.fleeBoost = 0
+      }
+      // Exponential decay: boosted speed → original speed smoothly
+      fish.speed = fish.originalSpeed + (fish.speed - fish.originalSpeed) * 0.88
+    }
+
+    // ── Chase timer decay ──────────────────────────────────────────
+    if (fish.isChasingFood) {
+      fish.chaseTimer -= delta
+      if (fish.chaseTimer <= 0) {
+        // Give up: return to normal behavior
+        fish.isChasingFood = false
+        fish.speed = fish.savedSpeed
+      }
+    }
 
     const isFlipping = fish.flipTimer > 0
     fish.inFlipWindow = false
@@ -114,7 +151,7 @@ export function animateFishes(app: { screen: { width: number; height: number } }
         fish.speed = fish.originalSpeed
         fish.flipCooldown = 120  // ~2s cooldown before another flip can trigger
       }
-    } else {
+    } else if (!fish.isChasingFood) {
       // Only trigger a new flip when cooldown has elapsed
       if (fish.flipCooldown <= 0 && Math.random() < 0.0002 * delta) {
         fish.originalSpeed = fish.speed
@@ -127,7 +164,8 @@ export function animateFishes(app: { screen: { width: number; height: number } }
     }
 
     // ── Normal movement ─────────────────────────────────────────────
-    if (!isFlipping) {
+    // Skip turnSpeed during chase (direction is set by tickFood)
+    if (!isFlipping && fish.fleeBoost <= 0 && !fish.isChasingFood) {
       fish.direction += fish.turnSpeed * 0.01
     }
     fish.x += Math.sin(fish.direction) * fish.speed * delta

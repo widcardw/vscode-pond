@@ -2,6 +2,8 @@ import { Application, Assets } from 'pixi.js'
 import { addFishes, animateFishes } from './fishes'
 import type { Fish } from './fishes'
 import { addWaterDisplacement, animateWater, addWaterOverlay, animateWaterOverlay } from './water'
+import { setupInteraction, initSplash, tickSplash } from './interaction'
+import { initFood, spawnFood, tickFood } from './food'
 
 const app = new Application()
 
@@ -27,9 +29,20 @@ async function init() {
   // 3. Water surface overlay (on top of fishes)
   const overlay = addWaterOverlay(app.stage, app.screen.width, app.screen.height)
 
+  // 4. Food system (renders above overlay)
+  initFood(app.stage)
+
+  // 5. Mouse drag interaction + splash particles (renders on top of everything)
+  setupInteraction(app.canvas, fishes, app.stage, (x, y) => {
+    spawnFood(x, y)
+  })
+  initSplash(app.stage)
+
   // Tick: animate everything
   app.ticker.add((time) => {
     animateFishes(app, fishes, time)
+    tickFood(fishes, app.screen.height, time.deltaTime)
+    tickSplash(time.deltaTime)
     animateWater(water.sprite, time.deltaTime)
     animateWaterOverlay(overlay.tilingSprite, time.deltaTime)
   })
